@@ -45,6 +45,24 @@ Maze/
 * IDE: Visual Studio
 * OS: Windows
 
+
+## Build & Run
+
+### Maze Generator
+
+```bash
+cd generator
+make
+./a.out
+```
+
+프로그램 실행 후 미로의 가로 크기와 세로 크기를 숫자로 입력하면 `.maz` 형식의 미로 파일을 만들 수 있습니다.
+
+### Maze Visualizer
+
+본 시각화 프로그램은 openFrameworks 환경에서 실행됩니다.
+`visualizer/` 폴더의 Visual Studio solution 파일을 열어 실행하면 `.maz` 파일을 불러와 미로를 화면에 출력할 수 있습니다.
+
 ## What I Learned
 
 이 프로젝트를 통해 미로 생성 알고리즘이 실제 프로그램에서 어떻게 구현되는지 이해할 수 있었습니다.
