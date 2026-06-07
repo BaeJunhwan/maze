@@ -41,7 +41,11 @@ void ofApp::setup() {
 	windowWidth = ofGetWidth();
 	windowHeight = ofGetHeight();
 	isdfs = false;
+	isbfs = false;
 	isOpen = 0;
+
+	dfsButton.set(70, 25, 45, 25);
+	bfsButton.set(120, 25, 45, 25);
 	// Centre on the screen
 	ofSetWindowPosition((ofGetScreenWidth() - windowWidth) / 2, (ofGetScreenHeight() - windowHeight) / 2);
 
@@ -139,14 +143,38 @@ void ofApp::appMenuFunction(string title, bool bChecked) {
 	if (title == "Show DFS") {
 		//bShowInfo = bChecked;  // Flag is used elsewhere in Draw()
 		if (isOpen) {
-			DFS();
-			bShowInfo = bChecked;
+			int start = 0;
+			int target = maze_row * maze_col - 1;
+
+			isbfs = false;
+			isdfs = DFS(start, target);
+			menu->SetPopupItem("Show DFS", true);
+			menu->SetPopupItem("Show BFS", false);
+
+			if (!isdfs) {
+				cout << "DFS path not found" << endl;
+			}
+
 		} else
 			cout << "you must open file first" << endl;
 	}
 
 	if (title == "Show BFS") {
-		doTopmost(bChecked); // Use the checked value directly
+		//doTopmost(bChecked); // Use the checked value directly
+		if (isOpen) {
+			int start = 0;
+			int target = maze_row * maze_col - 1;
+			isdfs = false;
+			isbfs = BFS(start, target);
+			menu->SetPopupItem("Show DFS", false);
+			menu->SetPopupItem("Show BFS", true);
+
+			if (!isbfs) {
+				cout << "BFS path not found" << endl;
+			} 
+
+		} else
+			cout << "you must open file first" << endl;
 	}
 
 	if (title == "Full screen") {
@@ -175,15 +203,11 @@ void ofApp::draw() {
 	ofSetColor(100);
 	ofSetLineWidth(5);
 	int i, j;
-	
+
+	drawToolbarButtons();
 	// TO DO : DRAW MAZE;
 	// 저장된 자료구조를 이용해 미로를 그린다.
 	// add code here
-
-	int startX=50;
-	int startY=50;
-	int unit=20;
-	int thickness = 4;
 
 	for (i = 0; i < mazeLines.size(); i++) {
 		for (j = 0; j < mazeLines[i].length(); j++) {
@@ -204,16 +228,25 @@ void ofApp::draw() {
 		}
 	}
 
-	if (isdfs) {
-		ofSetColor(200);
-		ofSetLineWidth(5);
+	if (isdfs) {;
+		bShowInfo = true;
 		if (isOpen)
 			dfsdraw();
 		else
 			cout << "You must open file first" << endl;
 	}
+
+	if (isbfs) {
+		bShowInfo = true;
+		if (isOpen)
+			bfsdraw();
+		else
+			cout << "You must open file first" << endl;
+	}
+
 	if (bShowInfo) {
 		// Show keyboard duplicates of menu functions
+		ofSetColor(100);
 		sprintf(str, " comsil project");
 		myFont.drawString(str, 15, ofGetHeight() - 20);
 	}
@@ -308,6 +341,44 @@ void ofApp::mouseDragged(int x, int y, int button) {
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button) {
+
+	if (dfsButton.inside(x, y)) {
+		if (isOpen) {
+			int start = 0;
+			int target = maze_row * maze_col - 1;
+
+			isbfs = false;
+			isdfs = DFS(start, target);
+
+			menu->SetPopupItem("Show DFS", isdfs);
+			menu->SetPopupItem("Show BFS", false);
+
+			if (!isdfs) {
+				cout << "DFS path not found" << endl;
+			}
+		} else {
+			cout << "you must open file first" << endl;
+		}
+	}
+
+	if (bfsButton.inside(x, y)) {
+		if (isOpen) {
+			int start = 0;
+			int target = maze_row * maze_col - 1;
+
+			isdfs = false;
+			isbfs = BFS(start, target);
+
+			menu->SetPopupItem("Show DFS", false);
+			menu->SetPopupItem("Show BFS", isbfs);
+
+			if (!isbfs) {
+				cout << "BFS path not found" << endl;
+			}
+		} else {
+			cout << "you must open file first" << endl;
+		}
+	}
 }
 
 //--------------------------------------------------------------
@@ -338,7 +409,7 @@ bool ofApp::readFile() {
 		//string fileName = "maze0.maz";
 		
 		filePath = openFileResult.getPath();
-		printf("file name is %s\n", filePath);
+		cout << "file name is " << filePath << endl;
 		printf("Open\n");
 		pos = filePath.find_last_of(".");
 		if (pos != string::npos && pos != 0 && filePath.substr(pos + 1) == "maz") {
@@ -380,6 +451,8 @@ bool ofApp::readFile() {
 
 			adjList.clear();
 			adjList.resize(maze_row * maze_col);
+			visited = new int[maze_row * maze_col];
+			parent = new int[maze_row * maze_col];
 
 			for (int i = 0; i < maze_row; i++) {
 				for (int j = 0; j < maze_col; j++) {
@@ -415,6 +488,18 @@ void ofApp::freeMemory() {
 
 	mazeLines.clear();
 	adjList.clear();
+	finalPath.clear();
+
+	if (visited != nullptr) {
+		delete[] visited;
+		visited = nullptr;
+	}
+
+	if (parent != nullptr) {
+		delete[] parent;
+		parent = nullptr;
+	}
+
 
 	maze_row = 0;
 	maze_col = 0;
@@ -423,14 +508,234 @@ void ofApp::freeMemory() {
 	
 }
 
-bool ofApp::DFS() //DFS탐색을 하는 함수
+bool ofApp::DFS(int v, int target) //DFS탐색을 하는 함수
 {
 	//TO DO
 	//DFS탐색을 하는 함수 ( 3주차)
+	stack<int> S;
 
-	return 0;
+	finalPath.clear();
+	visitedEdge.clear();
+
+	for (int i = 0; i < maze_row * maze_col; i++) {
+		visited[i] = 0;
+		parent[i] = -1;
+	}
+
+	S.push(v);
+	visited[v] = true;
+	parent[v] = -1;
+
+
+	while (!S.empty()) {
+		int current = S.top();
+		visited[current] = true;
+		if (current == target) {
+			int x = target;
+			while (x != -1) {
+				finalPath.push_back(x);
+				x = parent[x];
+			}
+			reverse(finalPath.begin(), finalPath.end());
+			return true;
+		}	
+
+		bool move = false;
+
+		for (int j = 0; j < adjList[current].size(); j++) {
+			int next = adjList[current][j];
+
+			if (!visited[next]) {
+				S.push(next);
+				visited[next] = true;
+				move = true;
+				visitedEdge.push_back({ current, next });
+				
+				parent[next] = current;
+				break;
+			}
+		}
+
+		if (!move) {
+			S.pop();
+		}
+	}
+
+	return false;
+	
 }
 void ofApp::dfsdraw() {
 	//TO DO
 	//DFS를 수행한 결과를 그린다. (3주차 내용)
+	ofSetColor(180, 180, 180);
+	ofSetLineWidth(4);
+	drawEdge(visitedEdge);
+
+	ofSetColor(255, 0, 0);
+	ofSetLineWidth(6);
+	drawPath(finalPath);
+
+	drawStartEnd();
+
+}
+
+bool ofApp::BFS(int v, int target) {
+	queue<int> Q;
+
+	finalPath.clear();
+	visitedEdge.clear();
+
+	for (int i = 0; i < maze_row * maze_col; i++) {
+		visited[i] = 0;
+		parent[i] = -1;
+	}
+
+	Q.push(v);
+	visited[v] = true;
+	parent[v] = -1;
+
+	if (v == target) {
+		finalPath.push_back(v);
+		return true;
+	}
+
+	while (!Q.empty()) {
+		int current = Q.front();
+		Q.pop();
+
+		for (int j = 0; j < adjList[current].size(); j++) {
+			int next = adjList[current][j];
+
+			if (!visited[next]) {
+				visited[next] = true;
+				parent[next] = current;
+
+				visitedEdge.push_back({ current, next });
+
+				if (next == target) {
+					int x = target;
+
+					while (x != -1) {
+						finalPath.push_back(x);
+						x = parent[x];
+					}
+
+					reverse(finalPath.begin(), finalPath.end());
+					return true;
+				}
+
+				Q.push(next);
+			}
+		}
+	}
+
+	return false;
+}
+
+
+void ofApp::bfsdraw() {
+	//TO DO
+	//BFS를 수행한 결과를 그린다. (3주차 내용)
+	ofSetColor(180, 180, 180);
+	ofSetLineWidth(4);
+	drawEdge(visitedEdge);
+
+	ofSetColor(255, 0, 0);
+	ofSetLineWidth(6);
+	drawPath(finalPath);
+
+	drawStartEnd();
+
+}
+
+void ofApp::drawPath(vector<int>& path) {
+	for (int i = 0; i+1 < path.size(); i++) {
+		int a = path[i];
+		int b = path[i + 1];
+
+		int r1 = a / maze_col;
+		int c1 = a % maze_col;
+
+		int r2 = b / maze_col;
+		int c2 = b % maze_col;
+
+		float x1 = startX + (2 * c1 + 1) * unit;
+		float y1 = startY + (2 * r1 + 1 ) * unit;
+		float x2 = startX + (2 * c2 + 1) * unit;
+		float y2 = startY + (2 * r2 + 1) * unit;
+
+		ofDrawLine(x1, y1, x2, y2);
+
+		
+	}
+}
+
+void ofApp::drawEdge(vector<pair<int, int>>& edge) {
+	for (int i = 0; i < edge.size(); i++) {
+		int a = edge[i].first;
+		int b = edge[i].second;
+
+		int r1 = a / maze_col;
+		int c1 = a % maze_col;
+
+		int r2 = b / maze_col;
+		int c2 = b % maze_col;
+
+		float x1 = startX + (2 * c1 + 1) * unit;
+		float y1 = startY + (2 * r1 + 1) * unit;
+
+		float x2 = startX + (2 * c2 + 1) * unit;
+		float y2 = startY + (2 * r2 + 1) * unit;
+
+		ofDrawLine(x1, y1, x2, y2);
+	}
+}
+
+void ofApp::drawStartEnd() {
+	int start = 0;
+	int target = maze_row * maze_col - 1;
+
+	int sr = start / maze_col;
+	int sc = start % maze_col;
+
+	int tr = target / maze_col;
+	int tc = target % maze_col;
+
+	float sx = startX + (2 * sc + 1) * unit;
+	float sy = startY + (2 * sr + 1) * unit;
+
+	float tx = startX + (2 * tc + 1) * unit;
+	float ty = startY + (2 * tr + 1) * unit;
+
+	float boxSize = unit * 0.8;
+
+	ofSetColor(0, 255, 0);
+	ofDrawRectangle(sx - boxSize / 2, sy - boxSize / 2, boxSize, boxSize);
+
+	ofSetColor(0, 0, 255);
+	ofDrawRectangle(tx - boxSize / 2, ty - boxSize / 2, boxSize, boxSize);
+}
+
+
+void ofApp::drawToolbarButtons() {
+
+	if (isdfs) {
+		ofSetColor(180, 220, 255);
+	} else {
+		ofSetColor(230);
+	}
+	ofDrawRectangle(dfsButton);
+
+	ofSetColor(0);
+	myFont.drawString("DFS", dfsButton.x + 10, dfsButton.y + 17);
+
+	if (isbfs) {
+		ofSetColor(180, 220, 255);
+	} else {
+		ofSetColor(230);
+	}
+	ofDrawRectangle(bfsButton);
+
+	ofSetColor(0);
+	myFont.drawString("BFS", bfsButton.x + 10, bfsButton.y + 17);
 }
